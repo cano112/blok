@@ -28,6 +28,6 @@ struct fs_state {
     FILE *logfile;
     char *rootdir;
 };
-#define BB_DATA ((struct fs_state *) fuse_get_context()->private_data)
+#define BLOK_DATA ((struct fs_state *) fuse_get_context()->private_data)
 
 #endif
