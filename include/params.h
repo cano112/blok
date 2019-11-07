@@ -25,7 +25,6 @@
 #include <stdio.h>
 
 struct fs_state {
-    FILE *logfile;
     char *rootdir;
 };
 #define BLOK_DATA ((struct fs_state *) fuse_get_context()->private_data)
