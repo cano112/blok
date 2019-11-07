@@ -13,8 +13,6 @@
   A copy of that code is included in the file fuse.h
 */
 
-#include <ctype.h>
-#include <libgen.h>
 #include "../include/params.h"
 #include <dirent.h>
 #include <errno.h>
