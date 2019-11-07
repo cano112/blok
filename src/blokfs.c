@@ -29,11 +29,9 @@
 #include <sys/xattr.h>
 #endif
 
-//  All the paths I see are relative to the root of the mounted
-//  filesystem.  In order to get to the underlying filesystem, I need to
-//  have the mountpoint.  I'll save it away early on in main(), and then
-//  whenever I need a path for something I'll call this to construct
-//  it.
+//  All the paths I see are relative to the root of the mounted filesystem.  In order to get to the underlying
+//  filesystem, I need to have the mountpoint. I'll save it away early on in main(), and then whenever I need a path
+//  for something I'll call this to construct it.
 static void blok_fullpath(char fpath[PATH_MAX], const char *path)
 {
     strcpy(fpath, BLOK_DATA->rootdir);
@@ -54,10 +52,8 @@ int blok_getattr(const char *path, struct stat *statbuf)
     return wrap_return_code(lstat(fpath, statbuf));
 }
 
-// Note the system readlink() will truncate and lose the terminating
-// null.  So, the size passed to to the system readlink() must be one
-// less than the size passed to blok_readlink()
-// blok_readlink() code by Bernardo F Costa (thanks!)
+// Note the system readlink() will truncate and lose the terminating null. So, the size passed to to the system
+// readlink() must be one less than the size passed to blok_readlink() blok_readlink() code by Bernardo F Costa (thanks!)
 int blok_readlink(const char *path, char *link, size_t size)
 {
     char fpath[PATH_MAX];
@@ -116,10 +112,9 @@ int blok_rmdir(const char *path)
     return wrap_return_code(rmdir(fpath));
 }
 
-// The parameters here are a little bit confusing, but do correspond
-// to the symlink() system call.  The 'path' is where the link points,
-// while the 'link' is the link itself.  So we need to leave the path
-// unaltered, but insert the link into the mounted directory.
+// The parameters here are a little bit confusing, but do correspond to the symlink() system call.  The 'path' is where
+// the link points, while the 'link' is the link itself.  So we need to leave the path unaltered, but insert the link
+// into the mounted directory.
 int blok_symlink(const char *path, const char *link)
 {
     char flink[PATH_MAX];
@@ -179,9 +174,8 @@ int blok_open(const char *path, struct fuse_file_info *fi)
     char fpath[PATH_MAX];
     blok_fullpath(fpath, path);
     
-    // if the open call succeeds, my retstat is the file descriptor,
-    // else it's -errno.  I'm making sure that in that case the saved
-    // file descriptor is exactly -1.
+    // if the open call succeeds, my retstat is the file descriptor, else it's -errno.  I'm making sure that in that
+    // case the saved file descriptor is exactly -1.
     int fd = wrap_return_code(open(fpath, fi->flags));
     fi->fh = fd;
     if(fd < 0) {
@@ -287,10 +281,9 @@ int blok_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offs
 	    return -errno;
     }
 
-    // This will copy the entire directory into the buffer.  The loop exits
-    // when either the system readdir() returns NULL, or filler()
-    // returns something non-zero.  The first case just means I've
-    // read the whole directory; the second means the buffer is full.
+    // This will copy the entire directory into the buffer.  The loop exits when either the system readdir() returns
+    // NULL, or filler() returns something non-zero.  The first case just means I've read the whole directory;
+    // the second means the buffer is full.
     do {
         if (filler(buf, de->d_name, NULL, 0) != 0) {
             return -ENOMEM;
@@ -410,51 +403,39 @@ void blok_usage()
 
 int main(int argc, char *argv[])
 {
-    int fuse_stat;
-    struct fs_state *blok_data;
-
-    // blok doesn't do any access checking on its own (the comment
-    // blocks in fuse.h mention some of the functions that need
-    // accesses checked -- but note there are other functions, like
-    // chown(), that also need checking!).  Since running blok as root
-    // will therefore open Metrodome-sized holes in the system
-    // security, we'll check if root is trying to mount the filesystem
-    // and refuse if it is.  The somewhat smaller hole of an ordinary
-    // user doing it with the allow_other flag is still there because
-    // I don't want to parse the options string.
+    // blok doesn't do any access checking on its own (the comment blocks in fuse.h mention some of the functions
+    // that need accesses checked -- but note there are other functions, like chown(), that also need checking!).
+    // Since running blok as root will therefore open Metrodome-sized holes in the system security, we'll check if
+    // root is trying to mount the filesystem and refuse if it is.  The somewhat smaller hole of an ordinary
+    // user doing it with the allow_other flag is still there because I don't want to parse the options string.
     if ((getuid() == 0) || (geteuid() == 0)) {
     	fprintf(stderr, "Running blok as root opens unnacceptable security holes\n");
     	return 1;
     }
 
-    // See which version of fuse we're running
     fprintf(stderr, "Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
     
-    // Perform some sanity checking on the command line:  make sure
-    // there are enough arguments, and that neither of the last two
-    // start with a hyphen (this will break if you actually have a
-    // rootpoint or mountpoint whose name starts with a hyphen, but so
-    // will a zillion other programs)
-    if ((argc < 3) || (argv[argc-2][0] == '-') || (argv[argc-1][0] == '-'))
-	blok_usage();
-
-    blok_data = malloc(sizeof(struct fs_state));
-    if (blok_data == NULL) {
-	perror("main calloc");
-	abort();
+    // Perform some sanity checking on the command line:  make sure there are enough arguments, and that neither of
+    // the last two start with a hyphen (this will break if you actually have a rootpoint or mountpoint whose name
+    // starts with a hyphen, but so will a zillion other programs)
+    if ((argc < 3) || (argv[argc-2][0] == '-') || (argv[argc-1][0] == '-')) {
+        blok_usage();
     }
 
-    // Pull the rootdir out of the argument list and save it in my
-    // internal data
+    struct fs_state *blok_data = malloc(sizeof(struct fs_state));
+    if (blok_data == NULL) {
+	    perror("main calloc");
+	    abort();
+    }
+
+    // Pull the rootdir out of the argument list and save it in my internal data
     blok_data->rootdir = realpath(argv[argc-2], NULL);
     argv[argc-2] = argv[argc-1];
     argv[argc-1] = NULL;
     argc--;
-    
-    // turn over control to fuse
+
     fprintf(stderr, "about to call fuse_main\n");
-    fuse_stat = fuse_main(argc, argv, &blok_oper, blok_data);
+    int fuse_stat = fuse_main(argc, argv, &blok_oper, blok_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-    
     return fuse_stat;
 }
