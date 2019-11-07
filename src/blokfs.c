@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fuse.h>
+#include <stdarg.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,6 +29,13 @@
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
+
+void log_msg(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(BLOK_DATA->logfile, format, ap);
+}
 
 //  All the paths I see are relative to the root of the mounted filesystem.  In order to get to the underlying
 //  filesystem, I need to have the mountpoint. I'll save it away early on in main(), and then whenever I need a path
@@ -173,7 +181,7 @@ int blok_open(const char *path, struct fuse_file_info *fi)
 {
     char fpath[PATH_MAX];
     blok_fullpath(fpath, path);
-    
+
     // if the open call succeeds, my retstat is the file descriptor, else it's -errno.  I'm making sure that in that
     // case the saved file descriptor is exactly -1.
     int fd = wrap_return_code(open(fpath, fi->flags));
@@ -186,6 +194,8 @@ int blok_open(const char *path, struct fuse_file_info *fi)
 
 int blok_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
+
+    log_msg("{filename: \"%s\", offset: %ld, size: %zu}\n", path, offset, size);
     return wrap_return_code(pread(fi->fh, buf, size, offset));
 }
 
@@ -401,6 +411,24 @@ void blok_usage()
     abort();
 }
 
+FILE *log_open()
+{
+    FILE *logfile;
+
+    // very first thing, open up the logfile and mark that we got in
+    // here.  If we can't open the logfile, we're dead.
+    logfile = fopen("blok.log", "w");
+    if (logfile == NULL) {
+        perror("logfile");
+        exit(EXIT_FAILURE);
+    }
+
+    // set logfile to line buffering
+    setvbuf(logfile, NULL, _IOLBF, 0);
+
+    return logfile;
+}
+
 int main(int argc, char *argv[])
 {
     // blok doesn't do any access checking on its own (the comment blocks in fuse.h mention some of the functions
@@ -430,12 +458,12 @@ int main(int argc, char *argv[])
 
     // Pull the rootdir out of the argument list and save it in my internal data
     blok_data->rootdir = realpath(argv[argc-2], NULL);
+    blok_data->logfile = log_open();
     argv[argc-2] = argv[argc-1];
     argv[argc-1] = NULL;
     argc--;
 
-    fprintf(stderr, "about to call fuse_main\n");
     int fuse_stat = fuse_main(argc, argv, &blok_oper, blok_data);
-    fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+
     return fuse_stat;
 }
