@@ -194,7 +194,6 @@ int blok_open(const char *path, struct fuse_file_info *fi)
 
 int blok_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-
     log_msg("{filename: \"%s\", offset: %ld, size: %zu}\n", path, offset, size);
     return wrap_return_code(pread(fi->fh, buf, size, offset));
 }
